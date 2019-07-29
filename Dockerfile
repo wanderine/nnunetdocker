@@ -23,18 +23,16 @@ rm Anaconda3-2019.07-Linux-x86_64.sh
 
 RUN export PATH=$PATH:/root/anaconda/bin
 
-RUN ~/anaconda/bin/conda env create -f nnUNet_env.yaml
+RUN cd Downloads && \
+~/anaconda/bin/conda env create -f nnUNet_env.yaml
 
 RUN ~/anaconda/bin/activate nnUNet
 
-RUN mkdir repository
-RUN cd repository
+RUN mkdir repository && \
+cd repository && \
+git clone https://github.com/MIC-DKFZ/nnUNet.git . && \
+pip install -e .
 
-RUN git clone https://github.com/MIC-DKFZ/nnUNet.git .
-
-RUN pip install -e .
-
-RUN cd ..
 RUN chmod +x /home/pipeline.sh
 
 ENTRYPOINT ["/home/pipeline.sh"]
