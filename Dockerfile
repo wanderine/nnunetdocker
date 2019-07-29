@@ -21,7 +21,7 @@ chmod +x Anaconda3-2019.07-Linux-x86_64.sh && \
 ./Anaconda3-2019.07-Linux-x86_64.sh -b -p ~/anaconda && \
 rm Anaconda3-2019.07-Linux-x86_64.sh
 
-export PATH=$PATH:/root/anaconda/bin
+RUN export PATH=$PATH:/root/anaconda/bin
 
 RUN ~/anaconda/bin/conda env create -f nnUNet_env.yaml
 
