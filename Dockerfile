@@ -31,7 +31,7 @@ RUN ~/anaconda/bin/activate nnUNet
 RUN mkdir repository && \
 cd repository && \
 git clone https://github.com/MIC-DKFZ/nnUNet.git . && \
-pip install -e .
+/root/anaconda/bin/pip install -e .
 
 RUN chmod +x /home/pipeline.sh
 
