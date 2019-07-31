@@ -10,9 +10,6 @@ RUN yum -y install wget
 RUN yum -y install git
 RUN yum -y install unzip
 
-# Copy nnUNet environment file
-COPY nnUNet-cpu.yaml /home
-
 # Install Anaconda
 RUN cd /home && \
   wget https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh && \
@@ -24,11 +21,14 @@ RUN cd /home && \
 ENV PATH=/root/anaconda/bin:$PATH
 
 # Create nnUNet conda environment
-RUN cd /home && \
-conda env create -f nnUNet-cpu.yaml
+COPY nnUNet.yaml /home
+RUN conda env create -f /home/nnUNet.yaml
+# COPY nnUNet-cpu.yaml /home
+# RUN conda env create -f /home/nnUNet-cpu.yaml
 
 # Add nnUNEt environment to path
-ENV PATH=/root/anaconda/envs/nnUNet-cpu/bin:$PATH
+ENV PATH=/root/anaconda/envs/nnUNet/bin:$PATH
+# ENV PATH=/root/anaconda/envs/nnUNet-cpu/bin:$PATH
 
 # Clone and install nnUNet
 RUN mkdir /home/nnUNet && \
@@ -41,7 +41,7 @@ RUN mkdir /home/nnUNet && \
 
 # Download trained model
 RUN cd /home && \
-  wget https://www.dropbox.com/s/kf2wxrj6zl1oy71/results.zip 
+  wget https://www.dropbox.com/s/kf2wxrj6zl1oy71/results.zip
 RUN mkdir -p /home/nnUNet/data
 RUN unzip /home/results.zip -d /home/nnUNet/data
 
