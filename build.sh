@@ -4,4 +4,4 @@
 
 #!/bin/bash 
 
-docker build -t nnimage .
+docker build -t nnimage-gpu .

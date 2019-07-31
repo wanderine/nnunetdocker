@@ -1,14 +1,15 @@
 
 # Start from CentOS 7
-FROM centos:7.6.1810
+FROM nvidia/cuda:10.1-base
 
 # Set the shell to bash
 SHELL ["/bin/bash", "-c"]
 
 # Install needed packages
-RUN yum -y install wget
-RUN yum -y install git
-RUN yum -y install unzip
+RUN apt-get update && apt-get upgrade -y
+RUN apt-get install -y wget
+RUN apt-get install -y git
+RUN apt-get install -y unzip
 
 # Install Anaconda
 RUN cd /home && \
@@ -23,21 +24,15 @@ ENV PATH=/root/anaconda/bin:$PATH
 # Create nnUNet conda environment
 COPY nnUNet.yaml /home
 RUN conda env create -f /home/nnUNet.yaml
-# COPY nnUNet-cpu.yaml /home
-# RUN conda env create -f /home/nnUNet-cpu.yaml
 
 # Add nnUNEt environment to path
 ENV PATH=/root/anaconda/envs/nnUNet/bin:$PATH
-# ENV PATH=/root/anaconda/envs/nnUNet-cpu/bin:$PATH
 
 # Clone and install nnUNet
 RUN mkdir /home/nnUNet && \
   cd /home/nnUNet && \
   git clone https://github.com/MIC-DKFZ/nnUNet.git . && \
   pip install -e .
-# RUN mkdir /home/nnUNet
-# COPY nnUNet /home/nnUNet
-# RUN pip install -e /home/nnUNet
 
 # Download trained model
 RUN cd /home && \
@@ -46,7 +41,6 @@ RUN mkdir -p /home/nnUNet/data
 RUN unzip /home/results.zip -d /home/nnUNet/data
 
 # Set environmental variables for nnUNet
-# ENV nnUNet_results=/home/nnUNet/data/results
 ENV RESULTS_FOLDER=/home/nnUNet/data/results
 
 # Create folders for input and output data
@@ -57,3 +51,4 @@ COPY pipeline.sh /home
 RUN chmod +x /home/pipeline.sh
 
 ENTRYPOINT ["/home/pipeline.sh"]
+# ENTRYPOINT ["/bin/bash"]
