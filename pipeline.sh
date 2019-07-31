@@ -1,9 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
-# first argument input volume
-inputVolume=$1
-
-# second argument output volume
-outputVolume=$2
-
-predict_simple.py ...
+# python /home/nnUNet/nnunet/inference/predict_simple.py -h
+python /home/nnUNet/nnunet/inference/predict_simple.py -i /in -o /out -t Task01_BraTS_onlyT1ce
