@@ -48,7 +48,7 @@ RUN mkdir /{in,out}
 
 # Copy script for running segmentation
 COPY pipeline.sh /home
+COPY post_process_segmentation.py /home
 RUN chmod +x /home/pipeline.sh
 
 ENTRYPOINT ["/home/pipeline.sh"]
-# ENTRYPOINT ["/bin/bash"]
