@@ -32,6 +32,7 @@ ENV PATH=/root/anaconda/envs/nnUNet/bin:$PATH
 RUN mkdir /home/nnUNet && \
   cd /home/nnUNet && \
   git clone https://github.com/MIC-DKFZ/nnUNet.git . && \
+  git checkout 335e0cf4119b18af01baea0ce05c0d23154b9973 && \
   pip install -e .
 
 # Download trained model
