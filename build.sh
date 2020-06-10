@@ -4,4 +4,4 @@
 
 #!/bin/bash
 
-docker build --no-cache -t nnimage-gpu-2 .
+docker build --no-cache -t nnimage-gpu-dicom .

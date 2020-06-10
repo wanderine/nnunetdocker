@@ -22,11 +22,11 @@ RUN cd /home && \
 ENV PATH=/root/anaconda/bin:$PATH
 
 # Create nnUNet conda environment
-COPY nnUNet.yaml /home
-RUN conda env create -f /home/nnUNet.yaml
+COPY nnUNetDicom.yaml /home
+RUN conda env create -f /home/nnUNetDicom.yaml
 
 # Add nnUNEt environment to path
-ENV PATH=/root/anaconda/envs/nnUNet/bin:$PATH
+ENV PATH=/root/anaconda/envs/nnUNetDicom/bin:$PATH
 
 # Clone and install nnUNet
 RUN mkdir /home/nnUNet && \
@@ -45,11 +45,13 @@ RUN unzip /home/results.zip -d /home/nnUNet/data
 ENV RESULTS_FOLDER=/home/nnUNet/data/results
 
 # Create folders for input and output data
-RUN mkdir /{in,out}
+RUN mkdir /{in,out,nifti_in,nifti_out}
 
 # Copy script for running segmentation
 COPY pipeline.sh /home
 COPY post_process_segmentation.py /home
+COPY convert_to_nifti.py /home
+COPY convert_to_RTSTRUCT.py /home
 RUN chmod +x /home/pipeline.sh
 
 ENTRYPOINT ["/home/pipeline.sh"]
