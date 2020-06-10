@@ -222,10 +222,8 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
         rtroi_observations.ROIInterpreter = ''
         rtroi_observations_sequence.append(rtroi_observations)
    
-    #ds.save_as(output_dicom_path + "RTSTRUCT.dcm")
-    ds.save_as("myRTSTRUCT.dcm")
-
-
+    ds.save_as(output_dicom_path + "segmentationRTSTRUCT.dcm")
+    
 def get_parser():
     """
     Parse input arguments.
