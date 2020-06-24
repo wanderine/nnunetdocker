@@ -1,3 +1,4 @@
+import random
 import nibabel as nib
 import argparse
 import numpy as np
@@ -21,6 +22,18 @@ def concatenate_coordinates(coordinates_x, coordinates_y, coordinates_z):
 
     return vector
 
+def find_first_slice_position(dcms):
+    
+    patientStartingZ = 0 
+    for idx, dcm in enumerate(dcms):
+        ds = pydicom.dcmread(dcm, stop_before_pixels=True)
+        if not 'ImagePositionPatient' in ds or ds.ImagePositionPatient is None:
+            continue
+        if ds.ImagePositionPatient[2] <= patientStartingZ or idx==0:
+            patientStartingZ = ds.ImagePositionPatient[2]
+    
+    return patientStartingZ
+
 def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str):
     
     #---------------
@@ -29,18 +42,24 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
 
     # Get number of DICOM files in DICOM path
     dicomFiles = next(os.walk(input_dicom_path))[2] 
-    
     numberOfDicomImages = len(dicomFiles)
     numberOfROIs = 1   # The whole volume is 1 ROI, assuming 1 tumour per patient
     
-    # Load template DICOM file header (first file), assume first file is called "*001.dcm"
-    ds = pydicom.dcmread(input_dicom_path + "/1-001.dcm",stop_before_pixels=True)
+    # Load template DICOM file header (first file)
+    ds = pydicom.dcmread(input_dicom_path + "%s"%dicomFiles[0],stop_before_pixels=True) 
 
     xPixelSize = ds.PixelSpacing[0]
     yPixelSize = ds.PixelSpacing[1]
     zPixelSize = ds.SliceThickness
-
+    
     print("Each voxel is ",xPixelSize," x ",yPixelSize," x ",zPixelSize)
+
+    # Find position of first slice
+    patientPosition = ds.ImagePositionPatient
+    patientStartingZ = find_first_slice_position([input_dicom_path + '%s'%_ for _ in dicomFiles])
+    
+    print('Patient position is ', patientPosition[:2])
+    print('First slice at ', patientStartingZ)
 
     #---------------
     # NIFTI part
@@ -53,14 +72,21 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
 
     AllCoordinates = []
 
+    if len(volume.shape)==4: 
+        volume = volume[...,0]
+        print('Assuming the first channel of the input nifti is the seg mask.')
+    elif len(volume.shape)==3:
+        print('Segmentation mask is same size of the patient image volume.')
+    else:
+        print('Dimension not supported.')
+            
     # Loop over slices in volume, get contours for each slice
-    #for slice in range(24,30):
     for slice in range(volume.shape[2]):
         
         AllCoordinatesThisSlice = []
 
-        image = volume[:,:,slice,0]
-
+        image = volume[:,:,slice] 
+        
         # Get contours in this slice using scikit-image
         contours = measure.find_contours(image, 0.5)
         
@@ -70,9 +96,19 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
             nCoordinates = len(contour[:,0])
             #print("number of coordinates is ",len(contour[:,0])*3," for contour ",n," for slice ",slice)
             zcoordinates = slice * np.ones((nCoordinates,1)) 
+            
+            # Add patient position offset
+            reg_contour = np.append(contour, zcoordinates, -1)
+            # Assume no other orientations for simplicity
+            reg_contour[:,0] = reg_contour[:,0] * xPixelSize + patientPosition[0]
+            reg_contour[:,1] = reg_contour[:,1] * yPixelSize + patientPosition[1]
+            reg_contour[:,2] = reg_contour[:,2] * zPixelSize + patientStartingZ
+
             # Storing coordinates as mm instead of as voxels
-            coordinates = concatenate_coordinates(contour[:,0] * xPixelSize, contour[:,1] * yPixelSize, zcoordinates * zPixelSize)
+            #coordinates = concatenate_coordinates(contour[:,0] * xPixelSize, contour[:,1] * yPixelSize, zcoordinates * zPixelSize)
+            coordinates = concatenate_coordinates(*reg_contour.T)
             coordinates = np.squeeze(coordinates)
+            
             AllCoordinatesThisSlice.append(coordinates)
 
         AllCoordinates.append(AllCoordinatesThisSlice)
@@ -94,7 +130,6 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
     # Referenced Frame of Reference Sequence: Referenced Frame of Reference 1
     refd_frame_of_ref1 = Dataset()
     refd_frame_of_ref1.FrameOfReferenceUID = ds.FrameOfReferenceUID # '1.3.6.1.4.1.9590.100.1.2.138467792711241923028335441031194506417'
-    # grep "Reference UID"
 
     # RT Referenced Study Sequence
     rt_refd_study_sequence = Sequence()
@@ -119,12 +154,7 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
 
     # Loop over all DICOM images
     for image in range(1,numberOfDicomImages+1):
-        if image < 10:
-            dstemp = pydicom.dcmread(input_dicom_path + "/1-00" + str(image) + ".dcm",stop_before_pixels=True)
-        elif image < 100:
-            dstemp = pydicom.dcmread(input_dicom_path + "/1-0" + str(image) + ".dcm",stop_before_pixels=True)
-        else:
-            dstemp = pydicom.dcmread(input_dicom_path + "/1-" + str(image) + ".dcm",stop_before_pixels=True)
+        dstemp = pydicom.dcmread(input_dicom_path + "%s"%dicomFiles[image-1],stop_before_pixels=True) 
         # Contour Image Sequence: Contour Image
         contour_image = Dataset()
         contour_image.ReferencedSOPClassUID = dstemp.SOPClassUID      # '1.2.840.10008.5.1.4.1.1.2'
@@ -185,12 +215,7 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
                 contour.ContourImageSequence = contour_image_sequence
 
                 # Load the corresponding dicom file to get the SOPInstanceUID
-                if slice < 9:
-                    dstemp = pydicom.dcmread(input_dicom_path + "/1-00" + str(slice+1) + ".dcm",stop_before_pixels=True)
-                elif slice < 99:
-                    dstemp = pydicom.dcmread(input_dicom_path + "/1-0" + str(slice+1) + ".dcm",stop_before_pixels=True)
-                else:
-                    dstemp = pydicom.dcmread(input_dicom_path + "/1-" + str(slice+1) + ".dcm",stop_before_pixels=True)
+                dstemp = pydicom.dcmread(input_dicom_path + "%s"%dicomFiles[slice],stop_before_pixels=True) 
 
                 # Contour Image Sequence: Contour Image 1
                 contour_image = Dataset()
@@ -222,22 +247,13 @@ def convert(input_nifti_path: str, input_dicom_path: str, output_dicom_path: str
         rtroi_observations.ROIInterpreter = ''
         rtroi_observations_sequence.append(rtroi_observations)
    
+    # Add RTSTRUCT specifics
+    ds.Modality = 'RTSTRUCT' # So the software can recognize RTSTRUCT
+    ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.481.3' # So the software can recognize RTSTRUCT
+    
+    random_str_1 = "%0.8d" % random.randint(0,99999999)
+    random_str_2 = "%0.8d" % random.randint(0,99999999)
+    ds.SeriesInstanceUID = "1.2.826.0.1.3680043.2.1125."+random_str_1+".1"+random_str_2 # Just some random UID
+    
     ds.save_as(output_dicom_path + "segmentationRTSTRUCT.dcm")
     
-def get_parser():
-    """
-    Parse input arguments.
-    """
-    parser = argparse.ArgumentParser(description='Convert nifti segmentation volume to DICOM RTstruct')
-
-    # Positional arguments.
-    parser.add_argument("input_nifti", help="Path to input NIFTI image containing segmentation mask")
-    parser.add_argument("input_dicom", help="Path to original DICOM files (used as template)")
-    parser.add_argument("output_dicom", help="Path to output DICOM RTSTRUCT image")
-    return parser.parse_args()
-
-if __name__ == "__main__":
-    p = get_parser()
-
-    convert(p.input_nifti, p.input_dicom, p.output_dicom)
-
