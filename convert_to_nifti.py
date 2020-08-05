@@ -2,7 +2,7 @@ import dicom2nifti
 import argparse
 
 def convert(input_dicom_path: str, output_nifti_path: str):
-    dicom2nifti.convert_directory(input_dicom_path, output_nifti_path, compression=True, reorient=True)
+    dicom2nifti.convert_directory(input_dicom_path, output_nifti_path, compression=True, reorient=False)
 
 def get_parser():
     """
